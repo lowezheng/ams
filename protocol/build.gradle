@@ -1,0 +1,78 @@
+buildscript {
+    dependencies {
+        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.6"
+    }
+    repositories {
+        mavenCentral()
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        credentials {
+            username = "${NEXUS_USER}"
+            password = "${NEXUS_PASSWORD}"
+        }
+        url "http://oss.apexsoft.com.cn/repository/maven-public/"
+    }
+
+}
+
+apply plugin: 'java'
+apply plugin: 'com.google.protobuf'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+
+group 'com.guoyuan'
+version '1.1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                    'src/main/java',
+                    'src/main/proto',
+                    'generatedSrc/main/java',
+                    'generatedSrc/main/grpc'
+            ]
+        }
+    }
+}
+
+ext{
+    amsVersion = "1.0.2-SNAPSHOT"
+    grpcVersion =  "1.12.1"
+    protocVersion = "3.6.1"
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.6.1"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks.generatedFilesBaseDir = "$projectDir/generatedSrc"
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+clean {
+    delete protobuf.generatedFilesBaseDir
+}
+
+dependencies {
+    compileOnly "com.google.protobuf:protobuf-java:${protocVersion}"
+    compileOnly "io.grpc:grpc-protobuf:${grpcVersion}"
+    compileOnly "io.grpc:grpc-netty:${grpcVersion}"
+    compileOnly "io.grpc:grpc-stub:${grpcVersion}"
+}

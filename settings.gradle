@@ -1,0 +1,5 @@
+rootProject.name = 'ams'
+include 'protocol'
+include 'server'
+include 'client'
+

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package com.guoyuan.helloworld;
+
+option java_multiple_files = true;
+
+
+//服务方法
+service HelloworldService {
+    rpc handle (HelloRequest) returns (HelloResponse) {}
+}
+
+//请求消息
+message HelloRequest {
+    string func = 1;
+    string name = 2;
+    string header = 3;
+    string body =4;
+}
+//响应消息
+message HelloResponse {
+    int32 code = 1;
+    string note = 2;
+    int32 count = 3;
+}
