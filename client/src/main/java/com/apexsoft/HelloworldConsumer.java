@@ -3,28 +3,34 @@ package com.apexsoft;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.apex.ams.annotation.AmsBlockingStub;
+import com.apex.ams.annotation.AmsStub;
+import com.apex.ams.server.AmsService;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import com.guoyuan.NormalRequest;
-import com.guoyuan.NormalResponse;
-import com.guoyuan.ServiceGrpc;
-import com.guoyuan.StreamResponse;
+import com.guoyuan.*;
+import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Iterator;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class HelloworldConsumer {
     private static final Logger log = LoggerFactory.getLogger(HelloworldConsumer.class);
 
+    //同步客户端
     @AmsBlockingStub
     private ServiceGrpc.ServiceBlockingStub stub;
+
+    //异步客户端
+    @AmsStub
+    private ServiceGrpc.ServiceStub asyncStub;
 
     public JSONObject normal() {
         try {
@@ -42,6 +48,7 @@ public class HelloworldConsumer {
 
     }
 
+    //上传
     public void download() throws IOException {
         NormalRequest req = NormalRequest.newBuilder().setParam("test").build();
         Iterator<StreamResponse> ite = stub.download(req);
@@ -64,8 +71,6 @@ public class HelloworldConsumer {
                     case DATABLOCK:
                         fos.write(resp.getDataBlock().toByteArray());
                         break;
-
-
                 }
             }
         } finally {
@@ -73,6 +78,82 @@ public class HelloworldConsumer {
                 fos.close();
             }
         }
+
+    }
+
+    //下载
+    public JSONObject upload(){
+        //GRPC使用的异步请求，所以需要自己加同步锁
+        final CountDownLatch count = new CountDownLatch(1);
+
+        final JSONObject[] data = new JSONObject[1];
+        //构建异步请求
+        StreamObserver<StreamRequest> reqObserver = asyncStub.upload(new StreamObserver<NormalResponse>() {
+            @Override
+            public void onNext(NormalResponse value) {
+                //监听响应报文
+                try {
+                    data[0] = JSON.parseObject(JsonFormat.printer().print(value));
+                } catch (InvalidProtocolBufferException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                log.error(t.getMessage());
+            }
+
+            @Override
+            public void onCompleted() {
+                count.countDown();
+            }
+        });
+
+        //发请求报文
+        InputStream fis = null;
+        try {
+            File file = new File("data-upload.txt");
+            fis = new FileInputStream(file);
+
+            //输出文件信息
+            StreamRequest.Builder reqBuilder = StreamRequest.newBuilder();
+            reqBuilder.setFilename(file.getName());
+            reqObserver.onNext(reqBuilder.build());
+
+            //输出文件长度
+            reqBuilder.setFileLength(fis.available());
+            reqObserver.onNext(reqBuilder.build());
+
+            //输出文件流
+            int length;
+            byte[] bytes = new byte[1024];
+            while ((length = fis.read(bytes)) != -1) {
+                reqBuilder.setDataBlock(ByteString.copyFrom(bytes, 0, length));
+                reqObserver.onNext(reqBuilder.build());
+            }
+
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            reqObserver.onError(new Exception("文件下载异常:" + e.getMessage(), e));
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
+            reqObserver.onCompleted();
+
+        }
+
+        try {
+            count.await(10000, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.error(e.getMessage(),e);
+        }
+        return data[0];
 
     }
 }

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.UUID;
 
 @AmsService
 public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
@@ -26,7 +27,57 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
 
     @Override
     public StreamObserver<StreamRequest> upload(StreamObserver<NormalResponse> responseObserver) {
-        return super.upload(responseObserver);
+
+        return new StreamObserver<StreamRequest>() {
+            private File file;
+            private OutputStream fos = null;
+
+            @Override
+            public void onNext(StreamRequest req) {
+                try {
+                    switch (req.getDataCase()) {
+                        case FILENAME:
+                            file = new File(UUID.randomUUID().toString() + req.getFilename());
+                            if (!file.exists()) {
+                                file.createNewFile();
+                            }
+                            fos = new FileOutputStream(file);
+                            break;
+                        case FILELENGTH:
+                            log.info("接收到文件长度：{} byte", req.getFileLength());
+                            break;
+                        case DATABLOCK:
+                            fos.write(req.getDataBlock().toByteArray());
+                            break;
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                log.error(t.getMessage());
+                responseObserver.onError(t);
+            }
+
+            @Override
+            public void onCompleted() {
+                if (fos != null) {
+                    try {
+                        fos.close();
+                    } catch (IOException e) {
+                        log.error(e.getMessage(), e);
+                    }
+                }
+                NormalResponse.Builder builder = NormalResponse.newBuilder();
+                builder.setCode(1)
+                        .setNote("成功");
+                responseObserver.onNext(builder.build());
+                responseObserver.onCompleted();
+
+            }
+        };
     }
 
     @Override
@@ -71,9 +122,5 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
 
     }
 
-    @Override
-    public StreamObserver<StreamRequest> uploadAndDownload(StreamObserver<StreamResponse> responseObserver) {
-        return super.uploadAndDownload(responseObserver);
-    }
 }
 

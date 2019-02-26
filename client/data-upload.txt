@@ -1,0 +1,301 @@
+# 1.制作镜像
+
+1. ssh登录 安装有docker的Linux机器
+2. cd  [docker镜像制作目录,用户自选，用于存放dockfile]
+3. 制作镜像
+
+> docker build -t aas-rta:1.0.2 .
+
+[Dockfile]
+
+```
+# FROM java:8u111-jre-alpine
+FROM openjdk:8-jre
+
+LABEL name="实时资产计算"
+
+LABEL version ="1.0.2"
+
+LABEL author ="apexsoft"
+
+EXPOSE 8080/tcp
+
+EXPOSE 13383/tcp
+
+WORKDIR /opt
+
+WORKDIR ams
+
+
+ADD  ams-server-module-realTimeAsset-1.0.0.jar /opt/ams
+
+ADD  config/ /opt/ams/config
+
+ADD  *.sh /opt/ams
+
+
+ENTRYPOINT ["java","-Dlog4j.configurationFile=config/log4j2.yml","-jar","ams-server-module-realTimeAsset-1.0.0.jar"] 
+```
+
+4. 导出镜像
+> docker save aas-rta:1.0.3 > rta.tar
+
+导出的镜像文件需要发布到现场的docker私服，或者公网的dockerhub，以便K8S拉取
+# 2.部署ZK
+在Kubernetes控制台
+
+1. 点击[ 新建  --> 从文本输入框创建 ]
+2. 拷贝部署文件到输入框
+
+zookeeper-Deployment.yml
+```
+apiVersion: extensions/v1beta1
+metadata:
+  name: ams-zk
+  namespace: default
+  labels: {k8s-app: ams-zk}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {k8s-app: ams-zk}
+  template:
+    metadata:
+      name: ams-zk
+      labels: {k8s-app: ams-zk}
+    spec:
+      containers:
+      - {name: ams-zk, image: 'zookeeper:3.4.13'}
+```
+zookeeper-Service.yml
+```
+{
+  "kind": "Service",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "ams-zk",
+    "namespace": "default",
+    "labels": {
+      "k8s-app": "ams-zk"
+    }
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "tcp-2181-21810",
+        "protocol": "TCP",
+        "port": 21810,
+        "targetPort": 2181
+      }
+    ],
+    "selector": {
+      "k8s-app": "ams-zk"
+    },
+    "type": "ClusterIP"
+  }
+}
+```
+
+* ZK部署后,访问地址是 ams-zk:21810
+* bootstrap.yml只需配置一个节点即可，由K8-Service负载
+
+# 3.配置AMS的配置文件资源（ConfigMap）
+
+configMap具体内容由现场业务决定
+
+```yml
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+    name: "ams-config"
+    namespace: "default"
+data:
+    application-dev.yml: |
+        spring:
+          profiles:
+            active: dev
+
+    application-dev.yml: |
+        application:
+          #应用名称，必须配置，集群中的应用名称必须一致
+          name: aas.uba
+        server:
+          #服务端口
+          port: 8082
+          context-path: /count
+        spring:
+          datasource:
+               aasDs:
+                 name: aas-mysql
+                 driver-class-name: com.mysql.cj.jdbc.Driver
+                 url: jdbc:mysql://192.168.3.28:3306/dd?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8
+                 username: dongdong
+                 password: dongdong
+                 initialSize: 5
+                 maxActive: 20
+                 validationQuery: select 1
+                 testWhileIdle: true
+                 testOnBorrow: false
+                 testOnReturn: false
+                 poolPreparedStatements: true
+                 maxOpenPreparedStatements: 100
+                 filters: stat,wall
+        
+        
+        aas:
+          swagger:
+            enabled: true #true为启用，false停用
+        
+        #以下配置可不需要配置,默认是 true 和 60秒
+        uba:
+          test: true            #es构造测试数据，现场无需配置
+          #sync-data: false     #是否同步es的事件字典数据
+          #sync-interval: 45   #同步事件数据的时间间隔 单位 秒
+    bootstrap.yml: |
+        ams:
+          authority: livebos-server
+          ca:
+            certFile: classpath:cert/ca.pem
+          client:
+            certFile: classpath:cert/client.pem
+            keyFile: classpath:cert/client.pkcs8.pem
+          server:
+            namespace: a.uba
+            certFile: classpath:cert/server.pem
+            keyFile: classpath:cert/server.pkcs8.pem
+          registry:
+            inner: false
+            protocol: zk
+            #address: 192.168.4.171:2181,192.168.4.172:2181,192.168.4.173:2181
+            address: 192.168.3.131:2181,192.168.3.132:2181,192.168.3.133:2181
+            #username: amscli
+            #password: apexsoft
+            #address: 192.168.3.24:2181
+            #address: 192.168.0.87:2181,192.168.0.98:2181,192.168.0.99:2181
+        
+    log4j2.yml: |
+        Configuration:
+          status: info
+        
+          Properties: # 定义全局变量
+            Property: # 缺省配置（用于开发环境）。其他环境需要在VM参数中指定，如下：
+              - name: log.level
+                value: info
+        
+          Appenders:
+            Console:  #输出到控制台
+              name: CONSOLE
+              target: SYSTEM_OUT
+              PatternLayout:
+                pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t (%F:%L) - %m%n"
+            RollingFile: # 输出到文件，超过128MB归档
+              - name: ROLLING_FILE
+                ignoreExceptions: false
+                fileName: logs/uba.log
+                filePattern: "logs/main-%d{yyyy-MM-dd-HHmmss}.gz"
+                PatternLayout:
+                  pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t (%F:%L) - %m%n"
+                Policies:
+                  SizeBasedTriggeringPolicy:
+                    size: "100MB"
+        
+          Loggers:
+            AsyncRoot:
+              includeLocation: true
+              level: ${log.level}
+              AppenderRef:
+                - ref: CONSOLE
+                - ref: ROLLING_FILE
+
+
+```
+
+
+# 4.部署微服务生产者
+
+在Kubernetes控制台
+
+1. 点击[ 新建  --> 从文本输入框创建 ]
+2. 拷贝部署文件到输入框
+
+ams-Deployment.yml
+```
+# by www.bejson.com 
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: ams-apex
+  namespace: default
+  labels: {k8s-app: ams-apex}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {k8s-app: ams-apex}
+  template:
+    metadata:
+      name: ams-apex
+      labels: {k8s-app: ams-aepx}
+    spec:
+      volumes:
+      # 引用ConfigMap资源，这样为服务的个性化配置文件只要s一个
+      - name: ams-config
+        configMap: {name: ams-config}
+      containers:
+      - name: ams-apex
+        image: abcsys.cn:5000/aas-rta:1.0.4
+        resources:
+            limits:
+                memory: "1Gi"
+                cpu: "2"
+            requests:
+                memory: "1Gi"
+                cpu: "2"
+        command: [java,-server,-Xms1024m,-Xmx1024m,-Dfile.encoding=UTF-8, -Dlog4j.configurationFile=config/log4j2.yml, -jar, ams-server-module-realTimeAsset-1.0.0.jar]
+        volumeMounts:
+        - {name: ams-config, mountPath: /opt/ams/config}
+```
+
+注意点：
+
+* limits是memory和cpu的最大值
+* requests是memory和cpu的最大值
+* command中的Xmx不能超过limits
+* ams的config目录通过configMap资源映射，保证任意AMS节点可以用相同的配置
+
+
+# 5. 微服务生产者如何提供给消费者访问
+
+`建立好的微服务容器集群，服务消费者必须部署在K8S集群Node上面，否则无法访问到生产者接口`
+
+服务消费者必须`参考服务生产者方式`做容器化部署
+
+
+
+
+# 6. 如何让集群外的应用访问微服务
+
+1. 外部应用如果直接作为微服务的消费者，通过GRPC协议访问，其必须安装在K8S集群的Node上
+
+2. 外部应用如何通过服务消费者提供的HTTP-RESFUL接口访问，需要将服务消费者的HTTP端口绑定到K8S宿主机上
+
+```yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: ams-proxy
+  namespace: default
+  labels: {k8s-app: ams-proxy}
+spec:
+  ports:
+  - {name: tcp-80-80-shctn, protocol: TCP, nodePort: 30010, port: 80}
+  selector: {k8s-app: ams-proxy}
+  type: NodePort
+
+```
+
+如上NodePort的Service部署后，HTTP-RESTFUL接口可以通过K8S集群的任意机器的 30010端口访问
+
+
+
+
+
+

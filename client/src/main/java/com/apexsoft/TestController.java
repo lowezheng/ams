@@ -19,7 +19,7 @@ public class TestController {
     }
 
     @RequestMapping("download")
-    public JSONObject test(){
+    public JSONObject download(){
         try {
             consumer.download();
             return new JSONObject(){{
@@ -31,5 +31,9 @@ public class TestController {
                 put("note","下载失败,"+e.getMessage());
             }};
         }
+    }
+    @RequestMapping("upload")
+    public JSONObject upload(){
+        return consumer.upload();
     }
 }

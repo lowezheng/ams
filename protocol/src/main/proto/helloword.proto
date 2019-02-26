@@ -14,9 +14,6 @@ service Service {
 
     rpc download (NormalRequest) returns (stream StreamResponse) {
     }
-
-    rpc uploadAndDownload (stream StreamRequest) returns (stream StreamResponse) {
-    }
 }
 
 //普通请求消息
