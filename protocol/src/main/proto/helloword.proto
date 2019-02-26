@@ -1,25 +1,48 @@
 syntax = "proto3";
 
-package com.guoyuan.helloworld;
+package com.guoyuan;
 
 option java_multiple_files = true;
 
-
 //服务方法
-service TestService {
-    rpc handle (HelloRequest) returns (HelloResponse) {}
+service Service {
+    rpc normal (NormalRequest) returns (NormalResponse) {
+    }
+
+    rpc upload (stream StreamRequest) returns (NormalResponse) {
+    }
+
+    rpc download (NormalRequest) returns (stream StreamResponse) {
+    }
+
+    rpc uploadAndDownload (stream StreamRequest) returns (stream StreamResponse) {
+    }
 }
 
-//请求消息
-message HelloRequest {
-    string func = 1;
-    string name = 2;
-    string header = 3;
-    string body =4;
+//普通请求消息
+message NormalRequest {
+    string param = 1;
 }
-//响应消息
-message HelloResponse {
+//流上传请求
+message StreamRequest {
+    oneof data {
+        string filename = 1;
+        uint32 fileLength = 2;
+        bytes dataBlock = 3;
+    }
+}
+//普通响应消息
+message NormalResponse {
     int32 code = 1;
     string note = 2;
-    int32 count = 3;
+    string data = 3;
+}
+
+//流下载响应消息
+message StreamResponse {
+    oneof data {
+        string filename = 1;
+        uint32 fileLength = 2;
+        bytes dataBlock = 3;
+    }
 }
