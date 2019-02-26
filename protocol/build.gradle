@@ -44,7 +44,6 @@ sourceSets {
 }
 
 ext{
-    amsVersion = "1.0.2-SNAPSHOT"
     grpcVersion =  "1.12.1"
     protocVersion = "3.6.1"
 }

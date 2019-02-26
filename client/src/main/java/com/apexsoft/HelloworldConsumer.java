@@ -3,6 +3,7 @@ package com.apexsoft;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.apex.ams.annotation.AmsBlockingStub;
+import com.apex.ams.annotation.AmsFutureStub;
 import com.apex.ams.annotation.AmsStub;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -32,6 +33,10 @@ public class HelloworldConsumer {
     //异步客户端
     @AmsStub
     private ServiceGrpc.ServiceStub asyncStub;
+
+    //异步客户端
+    @AmsFutureStub
+    private ServiceGrpc.ServiceFutureStub futureStub;
 
     public JSONObject normal() {
         try {
