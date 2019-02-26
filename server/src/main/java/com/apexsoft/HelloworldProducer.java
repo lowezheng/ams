@@ -3,6 +3,8 @@ package com.apexsoft;
 import com.apex.ams.server.AmsService;
 import com.google.protobuf.ByteString;
 import com.guoyuan.*;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +33,8 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
         return new StreamObserver<StreamRequest>() {
             private File file;
             private OutputStream fos = null;
-
+            NormalResponse.Builder builder = NormalResponse.newBuilder();
+            private int i=0;
             @Override
             public void onNext(StreamRequest req) {
                 try {
@@ -50,15 +53,20 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
                             fos.write(req.getDataBlock().toByteArray());
                             break;
                     }
+                    //模拟异常
+                    /*if (i++ == 3) {
+                        Thread.sleep(2000);
+                        throw new Exception("生产者模拟异常");
+                    }*/
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    log.error(e.getMessage(),e);
+                    responseObserver.onError(new StatusException(Status.INTERNAL));
                 }
             }
 
             @Override
             public void onError(Throwable t) {
-                log.error(t.getMessage());
-                responseObserver.onError(t);
+                log.error(t.getMessage(),t);
             }
 
             @Override
@@ -70,9 +78,7 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
                         log.error(e.getMessage(), e);
                     }
                 }
-                NormalResponse.Builder builder = NormalResponse.newBuilder();
-                builder.setCode(1)
-                        .setNote("成功");
+                builder.setCode(1).setNote("上传成功");
                 responseObserver.onNext(builder.build());
                 responseObserver.onCompleted();
 
@@ -84,6 +90,7 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
     public void download(NormalRequest request, StreamObserver<StreamResponse> responseObserver) {
         log.info("请求报文：{}", request.toString());
         InputStream fis = null;
+        int i =0;
         try {
             File file = new File("data-download.txt");
             fis = new FileInputStream(file);
@@ -103,11 +110,16 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
             while ((length = fis.read(bytes)) != -1) {
                 respBuilder.setDataBlock(ByteString.copyFrom(bytes, 0, length));
                 responseObserver.onNext(respBuilder.build());
+                //模拟异常
+                /*if (i++ == 3) {
+                    Thread.sleep(2000);
+                    throw new Exception("生产者模拟异常");
+                }*/
             }
 
         } catch (Exception e) {
             log.error(e.getMessage(), e);
-            responseObserver.onError(new Exception("文件下载异常:" + e.getMessage(), e));
+            responseObserver.onError(new StatusException(Status.INTERNAL));
         } finally {
             if (fis != null) {
                 try {

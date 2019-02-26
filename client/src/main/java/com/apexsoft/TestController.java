@@ -25,7 +25,7 @@ public class TestController {
             return new JSONObject(){{
                 put("note","下载成功");
             }};
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return new JSONObject(){{
                 put("note","下载失败,"+e.getMessage());
