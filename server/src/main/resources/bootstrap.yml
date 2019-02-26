@@ -1,0 +1,13 @@
+ams:
+  authority: livebos-server
+  ca:
+    certFile: classpath:cert/ca.pem
+  #client:
+    #certFile: classpath:cert/client.pem
+    #keyFile: classpath:cert/client.pkcs8.pem
+  server:
+    certFile: classpath:cert/server.pem
+    keyFile: classpath:cert/server.pkcs8.pem
+  registry:
+    protocol: zk
+    address: 192.168.230.128:32181

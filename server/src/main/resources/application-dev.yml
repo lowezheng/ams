@@ -1,0 +1,9 @@
+application:
+  #应用名称，必须配置，集群中的应用名称必须一致
+  name: guoyuan
+server:
+  #服务端口
+  port: 8081
+aas:
+  swagger:
+    enabled: true #true为启用，false停用

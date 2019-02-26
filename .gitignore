@@ -3,3 +3,7 @@
 /.gradle/
 /protocol/generatedSrc/
 /protocol/build/
+/client/logs/
+/client/build/
+/server/build/
+/server/logs/

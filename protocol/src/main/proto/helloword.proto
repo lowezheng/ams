@@ -6,7 +6,7 @@ option java_multiple_files = true;
 
 
 //服务方法
-service HelloworldService {
+service TestService {
     rpc handle (HelloRequest) returns (HelloResponse) {}
 }
 
