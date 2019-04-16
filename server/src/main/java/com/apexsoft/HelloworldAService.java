@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ABusiness(namespace = "com.guoyuan", pkg = "com.guoyuan")
@@ -19,12 +21,27 @@ public class HelloworldAService {
     @AService(name = "normal")
     public AResponse service(ARequest request) {
         log.info(JSON.toJSONString(request));
+
         AResponse response = new AResponse();
         response.setCode(1);
         response.setNote("测试报文");
         Map<String, Object> data = new HashMap<>();
         data.put("param1", 11);
+        data.put("user",new User(){{
+            setAge(1);
+            setName("dddd");
+        }});
         response.setData(data);
+        List<User> users =new ArrayList<>();
+        users.add(new User(){{
+            setAge(1);
+            setName("11111");
+        }});
+        users.add(new User(){{
+            setAge(2);
+            setName("22222");
+        }});
+        response.setRecords(users);
         return response;
     }
     //上传请求

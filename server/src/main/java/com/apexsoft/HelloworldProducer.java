@@ -67,6 +67,7 @@ public class HelloworldProducer extends ServiceGrpc.ServiceImplBase {
             @Override
             public void onError(Throwable t) {
                 log.error(t.getMessage(),t);
+
             }
 
             @Override

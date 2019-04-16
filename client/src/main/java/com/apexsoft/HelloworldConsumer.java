@@ -94,7 +94,7 @@ public class HelloworldConsumer {
     //下载
     public JSONObject upload(){
         //GRPC使用的异步请求，所以需要自己加同步锁
-        final CountDownLatch count = new CountDownLatch(1);
+               final CountDownLatch count = new CountDownLatch(1);
 
         final JSONObject[] data = new JSONObject[1];
         //构建异步请求
@@ -151,10 +151,10 @@ public class HelloworldConsumer {
                 reqObserver.onNext(reqBuilder.build());
 
                 //模拟异常
-                /*if(i++==3){
+                if(i++==3){
                     Thread.sleep(2000);
                     throw new Exception("消费者模拟异常");
-                }*/
+                }
 
             }
             reqObserver.onCompleted();
