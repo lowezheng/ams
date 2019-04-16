@@ -41,7 +41,9 @@ public class HelloworldAService {
             setAge(2);
             setName("22222");
         }});
-        response.setRecords(users);
+
+
+        response.setRecordsEx(users);
         return response;
     }
     //上传请求
