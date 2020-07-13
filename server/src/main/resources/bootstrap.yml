@@ -10,4 +10,4 @@ ams:
     keyFile: classpath:cert/server.pkcs8.pem
   registry:
     protocol: zk
-    address: 192.168.1.115:2181
+    address: 127.0.0.1:2181

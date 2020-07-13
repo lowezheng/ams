@@ -39,7 +39,7 @@ configurations {
 }
 
 ext {
-    aasVersion = "1.1.0-SNAPSHOT"
+    aasVersion = "1.4.4"
 }
 
 dependencies {
